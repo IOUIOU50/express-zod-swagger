@@ -53,7 +53,7 @@ export async function startServer(): Promise<Server> {
       }
 
       req.log.error(err);
-      res.status(500).json({ message: "internal server error" });
+      res.status(500).json({ message: "internal server error. moon is alive in my mind." });
     }
   );
 
