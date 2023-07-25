@@ -5,8 +5,7 @@
   "scripts": {
     "build": "rm -rf dist && tsc",
     "dev": "npx nodemon",
-    "format:check": "npx prettier --check ./src",
-    "format:fix": "npx prettier --write ./src",
+    "format": "npx prettier --write ./src",
     "pm2": "pm2 start npm --name express-zod-swagger -- start",
     "start": "NODE_PATH=dist node dist"
   },

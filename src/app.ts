@@ -45,13 +45,17 @@ export async function startServer(): Promise<Server> {
       next: express.NextFunction
     ) => {
       if (err instanceof ZodError) {
+        // request validation failed
         res.status(400).json(err);
         return next();
       }
       if (err instanceof BadRequestError) {
+        // bad request error occurred in business logic
         res.status(err.status).json(err);
+        return next();
       }
 
+      // internal server error
       req.log.error(err);
       res.status(500).json({ message: "internal server error" });
     }
