@@ -1,4 +1,4 @@
-import { RouteConfig, ZodRequestBody } from "@asteasolutions/zod-to-openapi";
+import { RouteConfig } from "@asteasolutions/zod-to-openapi";
 import { CommonError } from "error/extended";
 import {
   NextFunction,
@@ -8,21 +8,23 @@ import {
   Router,
 } from "express";
 import { SwaggerLoader } from "loader/swagger";
-import { AnyZodObject, ZodType } from "zod";
+import { AnyZodObject, ZodType, z } from "zod";
 
 // zod input validation + openAPI(swagger)
 export class ZodOaiController {
   private readonly router: Router;
 
-  constructor(private readonly prefix: string = "") {
+  constructor(private readonly controllerOption?: { prefix?: string }) {
     this.router = Router();
   }
 
   /**
-   * for handle request by using express req & res object manually by returnning JSON value
+   * for handle request by using express req & res object manually
    */
   addApi(option: ServiceHandlerOption) {
-    option.spec.path = this.prefix + option.spec.path.replace(/\/$/, ""); // 마지막 슬래시 제거
+    option.spec.path =
+      (this.controllerOption?.prefix || "") +
+      option.spec.path.replace(/\/$/, ""); // 마지막 슬래시 제거
 
     this.router[option.spec.method](
       option.spec.path.replace(/{/g, ":").replace(/}/g, ""),
@@ -43,10 +45,17 @@ export class ZodOaiController {
   }
 
   /**
-   * easily response 'application/json' content with status
+   * easily response 'application/json' content with status by returnning JSON value
    */
-  addJsonApi(option: JsonHandlerOption) {
-    option.spec.path = this.prefix + option.spec.path.replace(/\/$/, ""); // 마지막 슬래시 제거
+  addRestApi<
+    B extends ZodType<unknown> | undefined,
+    P extends AnyZodObject | undefined,
+    Q extends AnyZodObject | undefined,
+    H extends AnyZodObject | undefined
+  >(option: JsonHandlerOption<B, P, Q, H>) {
+    option.spec.path =
+      (this.controllerOption?.prefix || "") +
+      option.spec.path.replace(/\/$/, ""); // 마지막 슬래시 제거
 
     this.router[option.spec.method](
       option.spec.path.replace(/{/g, ":").replace(/}/g, ""),
@@ -54,10 +63,42 @@ export class ZodOaiController {
         ...(option.middlewares || []),
         async (req: Request, res: Response, next: NextFunction) => {
           try {
-            const { result, status, headers } = await option.handler(req);
+            const {
+              body,
+              headers: reqHeaders,
+              params,
+              query,
+            } = option.request || {};
+            const payload: { [key: string]: unknown } = {
+              ...req,
+            };
+            if (body) {
+              payload.body = body.parse(req.body);
+            }
+            if (reqHeaders) {
+              payload.headers = reqHeaders.parse(req.headers);
+            }
+            if (params) {
+              payload.params = params.parse(req.params);
+            }
+            if (query) {
+              payload.headers = query.parse(req.query);
+            }
+
+            const { result, status, headers } = await option.handler(
+              payload as HandlerPayloadOption<B, P, Q, H>,
+              {
+                log: req.log,
+                hostname: req.hostname,
+                url: req.url,
+                cookies: req.cookies,
+                signedCookies: req.signedCookies,
+              }
+            );
             const response = option.response.schema.safeParse(result);
             if (!response.success) {
-              throw new CommonError("response validation failed", 500, {
+              throw new CommonError("internal server error", 500, {
+                reason: "response validation failed",
                 ...response.error,
               });
             }
@@ -134,18 +175,35 @@ export type ServiceHandlerOption = {
   middlewares?: RequestHandler[];
   handler: (req: Request, res: Response) => Promise<void>;
 };
+
 export type JsonRouteConfig = Pick<
   RouteConfig,
   "method" | "path" | "tags" | "summary" | "description"
 >;
-export type JsonHandlerOption = {
+
+export type HandlerPayloadOption<
+  B extends ZodType<unknown> | undefined,
+  P extends AnyZodObject | undefined,
+  Q extends AnyZodObject | undefined,
+  H extends AnyZodObject | undefined
+> = (B extends ZodType<unknown> ? { body: z.infer<B> } : {}) &
+  (P extends AnyZodObject ? { params: z.infer<P> } : {}) &
+  (Q extends AnyZodObject ? { query: z.infer<Q> } : {}) &
+  (H extends AnyZodObject ? { headers: z.infer<H> } : {});
+
+export type JsonHandlerOption<
+  B extends ZodType<unknown> | undefined,
+  P extends AnyZodObject | undefined,
+  Q extends AnyZodObject | undefined,
+  H extends AnyZodObject | undefined
+> = {
   spec: JsonRouteConfig;
   middlewares?: RequestHandler[];
   request?: {
-    body?: ZodType<unknown>;
-    params?: AnyZodObject;
-    query?: AnyZodObject;
-    headers?: AnyZodObject | ZodType<unknown>[];
+    body?: B;
+    params?: P;
+    query?: Q;
+    headers?: H;
   };
   response: {
     status: number;
@@ -153,7 +211,16 @@ export type JsonHandlerOption = {
     headers?: AnyZodObject;
     schema: ZodType<unknown>;
   };
-  handler: (req: Request) => Promise<{
+  handler: (
+    payload: HandlerPayloadOption<B, P, Q, H>,
+    option: {
+      log: Request["log"];
+      hostname: Request["hostname"];
+      url: Request["url"];
+      cookies: Request["cookies"];
+      signedCookies: Request["signedCookies"];
+    }
+  ) => Promise<{
     status: number;
     headers?: AnyZodObject;
     result: unknown;

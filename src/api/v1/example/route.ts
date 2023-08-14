@@ -6,12 +6,14 @@ import { findExampleParams, findExampleResult } from "./spec/find-one";
 import { findExamplesAllQuery, findExamplesAllResult } from "./spec/find-all";
 
 export function routeExampleV1(parent: Router) {
-  const exampleController = new ZodOaiController("/api/v1/examples");
+  const exampleController = new ZodOaiController({
+    prefix: "/api/v1/examples",
+  });
   const exampleService = new ExampleService();
 
   exampleController
     // create a single example
-    .addJsonApi({
+    .addRestApi({
       spec: {
         method: "post",
         path: "/",
@@ -28,8 +30,7 @@ export function routeExampleV1(parent: Router) {
         schema: createExampleResult,
         description: "succeed to create result",
       },
-      handler: async (req) => {
-        const body = createExampleBody.parse(req.body);
+      handler: async ({ body }) => {
         const result = await exampleService.createOne(body);
         return {
           status: 201,
@@ -39,7 +40,7 @@ export function routeExampleV1(parent: Router) {
     })
 
     // findOne
-    .addJsonApi({
+    .addRestApi({
       spec: {
         method: "get",
         path: "/{id}",
@@ -55,15 +56,14 @@ export function routeExampleV1(parent: Router) {
         status: 200,
         schema: findExampleResult,
       },
-      handler: async (req) => {
-        const { id } = findExampleParams.parse(req.params);
-        const result = await exampleService.findOne(id);
+      handler: async ({ params }) => {
+        const result = await exampleService.findOne(params.id);
         return { status: 200, result };
       },
     })
 
     // findAll
-    .addJsonApi({
+    .addRestApi({
       spec: {
         method: "get",
         path: "/",
@@ -79,8 +79,7 @@ export function routeExampleV1(parent: Router) {
         schema: findExamplesAllResult,
         status: 200,
       },
-      handler: async (req) => {
-        const query = findExamplesAllQuery.parse(req.query);
+      handler: async ({ query }) => {
         const result = await exampleService.findAll(query);
         return { status: 200, result };
       },

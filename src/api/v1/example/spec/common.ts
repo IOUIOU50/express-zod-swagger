@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const exampleSchema = {
+export const exampleSchema = z.object({
   propA: z.string().openapi({
     description: "this is propA",
     example: "proaA",
@@ -17,12 +17,13 @@ export const exampleSchema = {
     description: "this is propD",
     example: "proaD",
   }),
-};
+});
 
-export const exampleEntity = {
-  id: z.string().openapi({
-    description: "identifier",
-    example: "d525f775-ec6e-4e35-b7e3-f1dacae17238",
-  }),
-  ...exampleSchema,
-};
+export const exampleEntity = z
+  .object({
+    id: z.string().openapi({
+      description: "identifier",
+      example: "d525f775-ec6e-4e35-b7e3-f1dacae17238",
+    }),
+  })
+  .merge(exampleSchema);

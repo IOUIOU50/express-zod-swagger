@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { findExampleResult } from "./find-one";
+import { exampleEntity } from "./common";
 
 export const findExamplesAllQuery = z.object({
   propA: z.string().optional().openapi({
@@ -20,6 +20,7 @@ export const findExamplesAllQuery = z.object({
   }),
   offset: z
     .preprocess((v) => parseInt(v as string, 10), z.number().min(1).default(1))
+    .optional()
     .openapi({
       description: "page offset",
       minimum: 1,
@@ -28,6 +29,7 @@ export const findExamplesAllQuery = z.object({
     }),
   limit: z
     .preprocess((v) => parseInt(v as string, 10), z.number().min(1).default(20))
+    .optional()
     .openapi({
       description: "number of resources limit",
       minimum: 1,
@@ -35,7 +37,7 @@ export const findExamplesAllQuery = z.object({
       example: 20,
     }),
 });
-export const findExamplesAllResult = z.array(findExampleResult);
+export const findExamplesAllResult = z.array(exampleEntity);
 
 export type FindExamplesAllQuery = z.infer<typeof findExamplesAllQuery>;
 export type FindExamplesAllResult = z.infer<typeof findExamplesAllResult>;

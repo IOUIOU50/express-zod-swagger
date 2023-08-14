@@ -5,6 +5,6 @@ export function routeV2(parent: Router) {
 
   // attach sub routers
 
-  // attach v1 router to parent router(might be express app)
+  // attach v2 router to parent router(might be express app)
   parent.use(router);
 }
