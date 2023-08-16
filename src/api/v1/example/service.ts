@@ -4,7 +4,7 @@ import { FindExamplesAllQuery, FindExamplesAllResult } from "./spec/find-all";
 import { FindExampleResult } from "./spec/find-one";
 
 export class ExampleService {
-  async createOne(payload: CreateExampleBody): Promise<CreateExampleResult> {
+  async createOne(payload: CreateExampleBody) {
     // write your service logic and replace return value
     return await Promise.resolve({
       id: "id",
@@ -15,7 +15,7 @@ export class ExampleService {
     });
   }
 
-  async findOne(id: string): Promise<FindExampleResult> {
+  async findOne(id: string) {
     // write your service logic and replace return value
     if (id !== "id") {
       throw new BadRequestError("couldn't find resource matched with id", 404);
@@ -30,8 +30,13 @@ export class ExampleService {
     });
   }
 
-  async findAll(query: FindExamplesAllQuery): Promise<FindExamplesAllResult> {
+  async findAll(query: FindExamplesAllQuery) {
     // write your service logic and replace return value
-    return await Promise.resolve([]);
+    return [];
   }
+
+  async updateUser(
+    id: string,
+    body: { propA?: string; propB?: string; propC?: string; propD?: string }
+  ) {}
 }

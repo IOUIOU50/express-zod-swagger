@@ -7,7 +7,8 @@
     "dev": "npx nodemon",
     "format": "npx prettier --write ./src",
     "pm2": "pm2 start npm --name express-zod-swagger -- start",
-    "start": "NODE_PATH=dist node dist"
+    "start": "NODE_PATH=dist node dist",
+    "start:ts": "ts-node src"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^5.3.1",

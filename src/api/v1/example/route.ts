@@ -4,6 +4,7 @@ import { ExampleService } from "./service";
 import { createExampleBody, createExampleResult } from "./spec/create-one";
 import { findExampleParams, findExampleResult } from "./spec/find-one";
 import { findExamplesAllQuery, findExamplesAllResult } from "./spec/find-all";
+import { z } from "zod";
 
 export function routeExampleV1(parent: Router) {
   const exampleController = new ZodOaiController({
@@ -32,10 +33,7 @@ export function routeExampleV1(parent: Router) {
       },
       handler: async ({ body }) => {
         const result = await exampleService.createOne(body);
-        return {
-          status: 201,
-          result,
-        };
+        return result;
       },
     })
 
@@ -58,7 +56,7 @@ export function routeExampleV1(parent: Router) {
       },
       handler: async ({ params }) => {
         const result = await exampleService.findOne(params.id);
-        return { status: 200, result };
+        return result;
       },
     })
 
@@ -81,8 +79,49 @@ export function routeExampleV1(parent: Router) {
       },
       handler: async ({ query }) => {
         const result = await exampleService.findAll(query);
-        return { status: 200, result };
+        return result;
       },
+    })
+
+    .addRestApi({
+      spec: {
+        method: "delete",
+        path: "/{id}",
+        tags: ["example"],
+        summary: "delete user",
+      },
+      request: {
+        params: z.object({
+          id: z.string(),
+        }),
+      },
+      response: {
+        status: 204,
+        description: "succeed to delete user",
+      },
+      handler: async ({ params }) => {
+        return { id: "" };
+      },
+    })
+
+    .addRestApi({
+      spec: {
+        method: "patch",
+        path: "/{id}",
+        tags: ["example"],
+        summary: "update user",
+      },
+      request: {
+        params: z.object({
+          id: z.string(),
+        }),
+        body: z.object({}),
+      },
+      response: {
+        status: 204,
+        description: "succeed to update user",
+      },
+      handler: async ({ params, body }) => {},
     });
 
   parent.use(exampleController.getRouter());

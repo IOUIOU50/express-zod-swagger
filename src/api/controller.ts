@@ -48,11 +48,14 @@ export class ZodOaiController {
    * easily response 'application/json' content with status by returnning JSON value
    */
   addRestApi<
-    B extends ZodType<unknown> | undefined,
-    P extends AnyZodObject | undefined,
-    Q extends AnyZodObject | undefined,
-    H extends AnyZodObject | undefined
-  >(option: JsonHandlerOption<B, P, Q, H>) {
+    ReqBody extends ZodType<unknown> | undefined,
+    ReqParams extends AnyZodObject | undefined,
+    ReqQuery extends AnyZodObject | undefined,
+    ReqHeaders extends AnyZodObject | undefined,
+    ResBody extends ZodType<unknown> | undefined
+  >(
+    option: JsonHandlerOption<ReqBody, ReqParams, ReqQuery, ReqHeaders, ResBody>
+  ) {
     option.spec.path =
       (this.controllerOption?.prefix || "") +
       option.spec.path.replace(/\/$/, ""); // 마지막 슬래시 제거
@@ -85,8 +88,13 @@ export class ZodOaiController {
               payload.headers = query.parse(req.query);
             }
 
-            const { result, status, headers } = await option.handler(
-              payload as HandlerPayloadOption<B, P, Q, H>,
+            const result = option.handler(
+              payload as HandlerPayloadOption<
+                ReqBody,
+                ReqParams,
+                ReqQuery,
+                ReqHeaders
+              >,
               {
                 log: req.log,
                 hostname: req.hostname,
@@ -95,7 +103,13 @@ export class ZodOaiController {
                 signedCookies: req.signedCookies,
               }
             );
-            const response = option.response.schema.safeParse(result);
+            if (result instanceof Promise) {
+              await result;
+            }
+            const response = option.response.schema
+              ? option.response.schema.safeParse(result)
+              : { success: true, data: null, error: {} };
+
             if (!response.success) {
               throw new CommonError("internal server error", 500, {
                 reason: "response validation failed",
@@ -103,11 +117,11 @@ export class ZodOaiController {
               });
             }
 
-            if (headers) {
-              res.set(headers);
+            if (Object.keys(option.response.headers || {}).length) {
+              res.set(option.response.headers);
             }
-            res.status(status);
-            if (status === 204 && result == null) {
+            res.status(option.response.status);
+            if (option.response.status === 204 && result == null) {
               res.end();
             } else {
               res.json(response.data);
@@ -160,6 +174,12 @@ export class ZodOaiController {
       }
     }
 
+    if (option.response.schema) {
+      routeConfig.responses[option.response.status].content = {
+        "application/json": { schema: option.response.schema },
+      };
+    }
+
     SwaggerLoader.instance.addPath(routeConfig); // for swagger
     return this; // builder pattern
   }
@@ -182,37 +202,38 @@ export type JsonRouteConfig = Pick<
 >;
 
 export type HandlerPayloadOption<
-  B extends ZodType<unknown> | undefined,
-  P extends AnyZodObject | undefined,
-  Q extends AnyZodObject | undefined,
-  H extends AnyZodObject | undefined
-> = (B extends ZodType<unknown> ? { body: z.infer<B> } : {}) &
-  (P extends AnyZodObject ? { params: z.infer<P> } : {}) &
-  (Q extends AnyZodObject ? { query: z.infer<Q> } : {}) &
-  (H extends AnyZodObject ? { headers: z.infer<H> } : {});
+  Body extends ZodType<unknown> | undefined,
+  Params extends AnyZodObject | undefined,
+  Query extends AnyZodObject | undefined,
+  Headers extends AnyZodObject | undefined
+> = (Body extends ZodType<unknown> ? { body: z.infer<Body> } : {}) &
+  (Params extends AnyZodObject ? { params: z.infer<Params> } : {}) &
+  (Query extends AnyZodObject ? { query: z.infer<Query> } : {}) &
+  (Headers extends AnyZodObject ? { headers: z.infer<Headers> } : {});
 
 export type JsonHandlerOption<
-  B extends ZodType<unknown> | undefined,
-  P extends AnyZodObject | undefined,
-  Q extends AnyZodObject | undefined,
-  H extends AnyZodObject | undefined
+  ReqBody extends ZodType<unknown> | undefined,
+  ReqParams extends AnyZodObject | undefined,
+  ReqQuery extends AnyZodObject | undefined,
+  ReqHeaders extends AnyZodObject | undefined,
+  ResBody extends ZodType<unknown> | undefined
 > = {
   spec: JsonRouteConfig;
   middlewares?: RequestHandler[];
   request?: {
-    body?: B;
-    params?: P;
-    query?: Q;
-    headers?: H;
+    body?: ReqBody;
+    params?: ReqParams;
+    query?: ReqQuery;
+    headers?: ReqHeaders;
   };
   response: {
     status: number;
     description: string;
-    headers?: AnyZodObject;
-    schema: ZodType<unknown>;
+    headers?: { [key: string]: string };
+    schema?: ResBody;
   };
   handler: (
-    payload: HandlerPayloadOption<B, P, Q, H>,
+    payload: HandlerPayloadOption<ReqBody, ReqParams, ReqQuery, ReqHeaders>,
     option: {
       log: Request["log"];
       hostname: Request["hostname"];
@@ -220,9 +241,7 @@ export type JsonHandlerOption<
       cookies: Request["cookies"];
       signedCookies: Request["signedCookies"];
     }
-  ) => Promise<{
-    status: number;
-    headers?: AnyZodObject;
-    result: unknown;
-  }>;
+  ) => ResBody extends ZodType<unknown>
+    ? Promise<z.infer<ResBody>>
+    : Promise<void>;
 };

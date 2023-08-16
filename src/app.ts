@@ -16,7 +16,7 @@ export async function startServer(): Promise<Server> {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
   app.use(logger());
-  app.use(require("helmet")()); // cjs/esm error
+  app.disable("x-powered-by"); // disable header 'x-powered-by': 'Express'
 
   app.get("/", (req, res, next) => {
     res.status(200).end("ok");
